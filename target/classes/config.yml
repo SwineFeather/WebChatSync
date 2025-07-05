@@ -1,0 +1,43 @@
+websocket:
+  port: 8082
+  token: "NthelubSOehna2812385aSHahnt"
+chat:
+  format: "{prefix} {player}: {message}"
+  web-prefix: "<blue>[Web]"
+  player-color: "<aqua>"
+  message-color: "<white>"
+  private-color: "<light_purple>"
+  rate-limit-seconds: 1.0
+  role-prefixes:
+    admin: "<red>[Admin]"
+    moderator: "<purple>[Mod]"
+    vip: "<aqua>[VIP]"
+    default: "<blue>[Web]"
+join-leave:
+  enabled: true
+  join: "<green>[<aqua>+</aqua>] <blue>[Web] <gold>{PLAYER}"
+  leave: "<red>[<dark_red>-</dark_red>] <blue>[Web] <gold>{PLAYER}"
+tablist:
+  enabled: true
+  web-prefix: "<blue>[Web] "
+help:
+  message: "<gold>WebChatSync Commands:\n<gray>/webchatsync [reload|ban|unban|mute|unmute|help] - Manage plugin\n<gray>/webpm <player> <message> - Send private message\n<gray>/webusers - Show web user count\n<gray>/help - Show this message"
+webusers:
+  message: "<gray>{count} web users online"
+mute:
+  message: "<red>{player} has been muted for {duration} minutes"
+  duration-default: 60
+events:
+  enabled: true
+  death: "<red>{PLAYER} died!"
+  town-created: "<green>{PLAYER} created a new town: {TOWN}!"
+bans:
+  players: []
+  ips: []
+  muted: []
+placeholderapi:
+  enabled: true
+  placeholders:
+    - townyadvanced_town
+    - townyadvanced_nation
+debug: false

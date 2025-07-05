@@ -1,0 +1,35 @@
+name: WebChatSync
+version: 1.0
+main: dev.lovable.webchatsync.WebChatSync
+api-version: 1.13
+depend: [PlaceholderAPI, Towny]
+commands:
+  webchatsync:
+    description: Manage the WebChatSync plugin
+    usage: /<command> [reload|ban|unban|mute|unmute] [player]
+    permission: webchatsync.admin
+  webpm:
+    description: Send a private message to a web user
+    usage: /<command> <player> <message>
+    permission: webchatsync.webpm
+  webusers:
+    description: Show the number of web-connected users
+    usage: /<command>
+    permission: webchatsync.webusers
+  help:
+    description: Show plugin help
+    usage: /<command>
+    permission: webchatsync.help
+permissions:
+  webchatsync.admin:
+    description: Allows access to WebChatSync admin commands
+    default: op
+  webchatsync.webpm:
+    description: Allows use of the webpm command
+    default: true
+  webchatsync.webusers:
+    description: Allows use of the webusers command
+    default: true
+  webchatsync.help:
+    description: Allows use of the help command
+    default: true
