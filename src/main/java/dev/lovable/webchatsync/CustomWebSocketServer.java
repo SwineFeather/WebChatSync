@@ -124,18 +124,7 @@ public class CustomWebSocketServer extends WebSocketServer {
         }
         plugin.getLogger().info(String.format("WebSocket client disconnected: %s (code: %d, reason: %s, player: %s, userId: %s)", 
             conn.getRemoteSocketAddress(), code, reason, playerName, userId));
-        if (plugin.getConfig().getBoolean("tablist.enabled", true)) {
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
-                plugin.updateTablist();
-                // Reset the specific player's display name if they're still online
-                if (playerName != null) {
-                    plugin.getServer().getOnlinePlayers().stream()
-                        .filter(p -> p.getName().equals(playerName))
-                        .findFirst()
-                        .ifPresent(p -> p.playerListName(Component.text(playerName)));
-                }
-            });
-        }
+        // Web users cannot appear in Minecraft tablist since they're not actual players
     }
 
     @Override
@@ -199,17 +188,7 @@ public class CustomWebSocketServer extends WebSocketServer {
                 }
                 plugin.getLogger().info(String.format("WebSocket client authenticated: %s as %s (userId: %s)", 
                     conn.getRemoteSocketAddress(), finalPlayerName, userId));
-                // Update tablist to show web prefix for this player
-                if (plugin.getConfig().getBoolean("tablist.enabled", true)) {
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        plugin.updateTablist();
-                        // Also update the specific player's display name
-                        plugin.getServer().getOnlinePlayers().stream()
-                            .filter(p -> p.getName().equals(finalPlayerName))
-                            .findFirst()
-                            .ifPresent(p -> p.playerListName(Component.text(plugin.getConfig().getString("tablist.web-prefix", "<blue>[Web] ") + finalPlayerName)));
-                    });
-                }
+                // Web users cannot appear in Minecraft tablist since they're not actual players
                 return;
             }
 
@@ -343,16 +322,7 @@ public class CustomWebSocketServer extends WebSocketServer {
                     }
                 }
                 plugin.getLogger().info(String.format("Disconnected banned player: %s", playerName));
-                if (plugin.getConfig().getBoolean("tablist.enabled", true)) {
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        plugin.updateTablist();
-                        // Reset the specific player's display name if they're still online
-                        plugin.getServer().getOnlinePlayers().stream()
-                            .filter(p -> p.getName().equals(playerName))
-                            .findFirst()
-                            .ifPresent(p -> p.playerListName(Component.text(playerName)));
-                    });
-                }
+                // Web users cannot appear in Minecraft tablist since they're not actual players
             }
         }
     }

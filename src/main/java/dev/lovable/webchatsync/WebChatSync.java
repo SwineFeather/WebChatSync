@@ -54,9 +54,7 @@ public class WebChatSync extends JavaPlugin implements Listener {
         loadConfig();
         getServer().getPluginManager().registerEvents(this, this);
         startWebSocketServer();
-        if (tablistEnabled) {
-            updateTablist();
-        }
+        // Web users cannot appear in Minecraft tablist since they're not actual players
     }
 
     @Override
@@ -107,36 +105,31 @@ public class WebChatSync extends JavaPlugin implements Listener {
 
     public void updateTablist() {
         if (!tablistEnabled || webSocketServer == null) return;
-        for (Player player : getServer().getOnlinePlayers()) {
-            // Only add web prefix to players who are connected via web
-            if (webSocketServer.isPlayerConnectedViaWeb(player.getName())) {
-                Component displayName = Component.text(tablistWebPrefix + player.getName());
-                player.playerListName(displayName);
-            } else {
-                // Reset to normal display name for in-game players
-                player.playerListName(Component.text(player.getName()));
-            }
+        // Web users cannot appear in Minecraft tablist since they're not actual players
+        // This method is kept for compatibility but doesn't modify anything
+        // The tablist will only show actual online Minecraft players
+        if (debug) {
+            getLogger().info("Tablist update called - web users cannot appear in Minecraft tablist");
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = org.bukkit.event.EventPriority.LOW)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
         String playerName = player.getName();
         String message = event.getMessage();
-        if (isMuted(playerName)) {
-            event.getPlayer().sendMessage(Component.text("You are muted and cannot send messages.").color(NamedTextColor.RED));
-            event.setCancelled(true);
-            return;
+        
+        // Only handle mute checks for web users, let other plugins handle in-game players
+        if (webSocketServer != null && webSocketServer.isPlayerConnectedViaWeb(playerName)) {
+            if (isMuted(playerName)) {
+                event.getPlayer().sendMessage(Component.text("You are muted and cannot send messages.").color(NamedTextColor.RED));
+                event.setCancelled(true);
+                return;
+            }
         }
-        // For in-game players, use a different format without web prefix
-        String inGameFormat = "{player}: {message}";
-        String format = inGameFormat
-            .replace("{player}", playerColor + playerName)
-            .replace("{message}", messageColor + message);
-        Component chatComponent = MiniMessage.miniMessage().deserialize(format);
-        event.setCancelled(true);
-        getServer().sendMessage(chatComponent);
+        
+        // Don't interfere with in-game player chat - let other plugins handle it
+        // Only broadcast to web users
         JSONObject json = new JSONObject();
         try {
             json.put("type", "chat")
@@ -154,7 +147,7 @@ public class WebChatSync extends JavaPlugin implements Listener {
                 webSocketServer.broadcast(json.toString());
             }
             if (debug) {
-                getLogger().info(String.format("Broadcasted to WebSocket: %s", format));
+                getLogger().info(String.format("Broadcasted to WebSocket: %s", playerName + ": " + message));
             }
         } catch (JSONException e) {
             getLogger().warning(String.format("Error processing chat message: %s", e.getMessage()));
@@ -163,20 +156,14 @@ public class WebChatSync extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        if (tablistEnabled) {
-            Player player = event.getPlayer();
-            // Don't add web prefix on join - it will be handled by updateTablist when web users connect
-            player.playerListName(Component.text(player.getName()));
-        }
+        // Don't interfere with player join - let other plugins handle it
+        // Web users cannot appear in tablist anyway
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        if (tablistEnabled) {
-            Player player = event.getPlayer();
-            // Reset to normal display name when player quits
-            player.playerListName(Component.text(player.getName()));
-        }
+        // Don't interfere with player quit - let other plugins handle it
+        // Web users cannot appear in tablist anyway
     }
 
     @EventHandler

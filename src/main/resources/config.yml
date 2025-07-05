@@ -20,6 +20,8 @@ join-leave:
 tablist:
   enabled: true
   web-prefix: "<blue>[Web] "
+  # Note: Web users cannot appear in Minecraft tablist since they're not actual players
+  # This setting is kept for compatibility but has no effect
 help:
   message: "<gold>WebChatSync Commands:\n<gray>/webchatsync [reload|ban|unban|mute|unmute|help] - Manage plugin\n<gray>/webpm <player> <message> - Send private message\n<gray>/webusers - Show web user count\n<gray>/help - Show this message"
 webusers:
