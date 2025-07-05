@@ -57,16 +57,17 @@ public class CustomWebSocketServer extends WebSocketServer {
 
     @Override
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-        String playerName = null;
+        final String[] playerNameHolder = {null};
         synchronized (playerConnections) {
             for (Map.Entry<String, WebSocket> entry : playerConnections.entrySet()) {
                 if (entry.getValue() == conn) {
-                    playerName = entry.getKey();
-                    playerConnections.remove(playerName);
+                    playerNameHolder[0] = entry.getKey();
+                    playerConnections.remove(playerNameHolder[0]);
                     break;
                 }
             }
         }
+        final String playerName = playerNameHolder[0];
         String userId = null;
         if (playerName != null) {
             for (Map.Entry<String, String> entry : userIdToPlayerName.entrySet()) {
@@ -124,7 +125,16 @@ public class CustomWebSocketServer extends WebSocketServer {
         plugin.getLogger().info(String.format("WebSocket client disconnected: %s (code: %d, reason: %s, player: %s, userId: %s)", 
             conn.getRemoteSocketAddress(), code, reason, playerName, userId));
         if (plugin.getConfig().getBoolean("tablist.enabled", true)) {
-            plugin.getServer().getScheduler().runTask(plugin, () -> plugin.updateTablist());
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                plugin.updateTablist();
+                // Reset the specific player's display name if they're still online
+                if (playerName != null) {
+                    plugin.getServer().getOnlinePlayers().stream()
+                        .filter(p -> p.getName().equals(playerName))
+                        .findFirst()
+                        .ifPresent(p -> p.playerListName(Component.text(playerName)));
+                }
+            });
         }
     }
 
@@ -139,12 +149,12 @@ public class CustomWebSocketServer extends WebSocketServer {
                     plugin.getLogger().warning(String.format("Invalid token from %s", conn.getRemoteSocketAddress()));
                     return;
                 }
-                String playerName = json.optString("player", "Unknown").trim();
+                final String playerName = json.optString("player", "Unknown").trim();
                 String userId = json.optString("userId", "").trim();
-                if (playerName.isEmpty()) playerName = "Unknown";
-                if (plugin.getConfig().getStringList("bans.players").contains(playerName)) {
+                final String finalPlayerName = playerName.isEmpty() ? "Unknown" : playerName;
+                if (plugin.getConfig().getStringList("bans.players").contains(finalPlayerName)) {
                     conn.close(1008, "You are banned from web chat");
-                    plugin.getLogger().warning(String.format("Banned player attempted to connect: %s", playerName));
+                    plugin.getLogger().warning(String.format("Banned player attempted to connect: %s", finalPlayerName));
                     return;
                 }
                 // Rate limit join messages
@@ -152,7 +162,7 @@ public class CustomWebSocketServer extends WebSocketServer {
                 Long lastJoinTime = lastJoinTimes.get(userId);
                 if (lastJoinTime != null && (currentTime - lastJoinTime) < 5000) {
                     conn.close(1008, "Join rate limit exceeded");
-                    plugin.getLogger().warning(String.format("Join rate limit exceeded for %s (userId: %s)", playerName, userId));
+                    plugin.getLogger().warning(String.format("Join rate limit exceeded for %s (userId: %s)", finalPlayerName, userId));
                     return;
                 }
                 lastJoinTimes.put(userId, currentTime);
@@ -160,37 +170,45 @@ public class CustomWebSocketServer extends WebSocketServer {
                 ScheduledFuture<?> existingTask = pendingLeaveTasks.remove(userId);
                 if (existingTask != null) {
                     existingTask.cancel(false);
-                    plugin.getLogger().info(String.format("Cancelled pending leave task for %s (userId: %s) due to reconnect", playerName, userId));
+                    plugin.getLogger().info(String.format("Cancelled pending leave task for %s (userId: %s) due to reconnect", finalPlayerName, userId));
                 }
                 synchronized (playerConnections) {
-                    if (playerConnections.containsKey(playerName)) {
-                        WebSocket existingConn = playerConnections.get(playerName);
+                    if (playerConnections.containsKey(finalPlayerName)) {
+                        WebSocket existingConn = playerConnections.get(finalPlayerName);
                         existingConn.close(1008, "Duplicate connection for player");
                         clients.remove(existingConn);
                         plugin.getLogger().info(String.format("Closed duplicate connection for %s (userId: %s) from %s", 
-                            playerName, userId, existingConn.getRemoteSocketAddress()));
+                            finalPlayerName, userId, existingConn.getRemoteSocketAddress()));
                     }
-                    playerConnections.put(playerName, conn);
+                    playerConnections.put(finalPlayerName, conn);
                     if (!userId.isEmpty()) {
-                        userIdToPlayerName.put(userId, playerName);
+                        userIdToPlayerName.put(userId, finalPlayerName);
                     }
                 }
                 unauthenticated.remove(conn);
                 clients.add(conn);
                 if (plugin.getConfig().getBoolean("join-leave.enabled", true)) {
-                    String joinMessage = joinMessageFormat.replace("{PLAYER}", playerName);
+                    String joinMessage = joinMessageFormat.replace("{PLAYER}", finalPlayerName);
                     Component joinComponent = MiniMessage.miniMessage().deserialize(joinMessage);
                     plugin.getServer().sendMessage(joinComponent);
                     broadcast(new JSONObject()
                         .put("type", "join")
-                        .put("player", playerName)
-                        .put("message", playerName + " joined the chat")
+                        .put("player", finalPlayerName)
+                        .put("message", finalPlayerName + " joined the chat")
                         .toString());
                 }
                 plugin.getLogger().info(String.format("WebSocket client authenticated: %s as %s (userId: %s)", 
-                    conn.getRemoteSocketAddress(), playerName, userId));
+                    conn.getRemoteSocketAddress(), finalPlayerName, userId));
+                // Update tablist to show web prefix for this player
                 if (plugin.getConfig().getBoolean("tablist.enabled", true)) {
-                    plugin.getServer().getScheduler().runTask(plugin, () -> plugin.updateTablist());
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        plugin.updateTablist();
+                        // Also update the specific player's display name
+                        plugin.getServer().getOnlinePlayers().stream()
+                            .filter(p -> p.getName().equals(finalPlayerName))
+                            .findFirst()
+                            .ifPresent(p -> p.playerListName(Component.text(plugin.getConfig().getString("tablist.web-prefix", "<blue>[Web] ") + finalPlayerName)));
+                    });
                 }
                 return;
             }
@@ -295,6 +313,12 @@ public class CustomWebSocketServer extends WebSocketServer {
         return playerConnections.size();
     }
 
+    public boolean isPlayerConnectedViaWeb(String playerName) {
+        synchronized (playerConnections) {
+            return playerConnections.containsKey(playerName);
+        }
+    }
+
     public void disconnectPlayer(String playerName) {
         synchronized (playerConnections) {
             WebSocket conn = playerConnections.get(playerName);
@@ -320,7 +344,14 @@ public class CustomWebSocketServer extends WebSocketServer {
                 }
                 plugin.getLogger().info(String.format("Disconnected banned player: %s", playerName));
                 if (plugin.getConfig().getBoolean("tablist.enabled", true)) {
-                    plugin.getServer().getScheduler().runTask(plugin, () -> plugin.updateTablist());
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        plugin.updateTablist();
+                        // Reset the specific player's display name if they're still online
+                        plugin.getServer().getOnlinePlayers().stream()
+                            .filter(p -> p.getName().equals(playerName))
+                            .findFirst()
+                            .ifPresent(p -> p.playerListName(Component.text(playerName)));
+                    });
                 }
             }
         }

@@ -108,8 +108,14 @@ public class WebChatSync extends JavaPlugin implements Listener {
     public void updateTablist() {
         if (!tablistEnabled || webSocketServer == null) return;
         for (Player player : getServer().getOnlinePlayers()) {
-            Component displayName = Component.text(tablistWebPrefix + player.getName());
-            player.playerListName(displayName);
+            // Only add web prefix to players who are connected via web
+            if (webSocketServer.isPlayerConnectedViaWeb(player.getName())) {
+                Component displayName = Component.text(tablistWebPrefix + player.getName());
+                player.playerListName(displayName);
+            } else {
+                // Reset to normal display name for in-game players
+                player.playerListName(Component.text(player.getName()));
+            }
         }
     }
 
@@ -123,8 +129,9 @@ public class WebChatSync extends JavaPlugin implements Listener {
             event.setCancelled(true);
             return;
         }
-        String format = chatFormat
-            .replace("{prefix}", MiniMessage.miniMessage().serialize(Component.text("")))
+        // For in-game players, use a different format without web prefix
+        String inGameFormat = "{player}: {message}";
+        String format = inGameFormat
             .replace("{player}", playerColor + playerName)
             .replace("{message}", messageColor + message);
         Component chatComponent = MiniMessage.miniMessage().deserialize(format);
@@ -158,8 +165,8 @@ public class WebChatSync extends JavaPlugin implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         if (tablistEnabled) {
             Player player = event.getPlayer();
-            Component displayName = Component.text(tablistWebPrefix + player.getName());
-            player.playerListName(displayName);
+            // Don't add web prefix on join - it will be handled by updateTablist when web users connect
+            player.playerListName(Component.text(player.getName()));
         }
     }
 
@@ -167,6 +174,7 @@ public class WebChatSync extends JavaPlugin implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         if (tablistEnabled) {
             Player player = event.getPlayer();
+            // Reset to normal display name when player quits
             player.playerListName(Component.text(player.getName()));
         }
     }

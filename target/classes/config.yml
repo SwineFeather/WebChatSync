@@ -4,7 +4,7 @@ websocket:
 chat:
   format: "{prefix} {player}: {message}"
   web-prefix: "<blue>[Web]"
-  player-color: "<aqua>"
+  player-color: "<white>"
   message-color: "<white>"
   private-color: "<light_purple>"
   rate-limit-seconds: 1.0
